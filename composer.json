@@ -1,0 +1,12 @@
+{
+    "name": "anodio/metrics",
+    "autoload": {
+        "psr-4": {
+            "Anodio\\Metrics\\": "src/"
+        }
+    },
+    "require": {
+        "anodio/core": "^0.1",
+        "promphp/prometheus_client_php": "^2.11"
+    }
+}
