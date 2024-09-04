@@ -16,6 +16,11 @@ class MetricsServiceProvider implements ServiceProviderInterface
 {
     public function register(ContainerBuilder $containerBuilder): void
     {
+        if (str_starts_with(CONTAINER_NAME, 'pest')) {
+            $containerBuilder->addDefinitions([
+                \Prometheus\Storage\Adapter::class => \Di\create(InMemory::class)
+            ]);
+        }
         if (str_starts_with(CONTAINER_NAME, 'worker')) {
             $containerBuilder->addDefinitions([
                 \Prometheus\Storage\Adapter::class => \Di\create(SupervisorMetricsWorkerDriver::class)
