@@ -12,8 +12,36 @@ class SupervisorMetricsWorkerDriver implements Adapter
 
     private WorkerConfig $workerConfig;
 
+    private static $dataCache = null;
+
+    private static $cacheSize = 20;
+
+    private static $currentCacheSize = 0;
+
+    private function sendMetric(array $data): void
+    {
+        if (self::$currentCacheSize == self::$cacheSize) {
+            SupervisorClient::getInstance()->send(
+                [
+                    'command' => 'updateBatchMetrics',
+                    'data'=>self::$dataCache
+                ],
+                'worker', $this->workerConfig->workerNumber);
+            foreach (self::$dataCache as $key => $value) {
+                self::$dataCache[$key] = null;
+            }
+            self::$currentCacheSize = 0;
+        } else {
+            self::$dataCache[self::$currentCacheSize] = $data;
+            self::$currentCacheSize++;
+        }
+    }
+
     public function __construct(WorkerConfig $workerConfig)
     {
+        if (self::$dataCache===null) {
+            self::$dataCache = new \SplFixedArray(self::$cacheSize);
+        }
         $this->workerConfig = $workerConfig;
     }
 
@@ -28,7 +56,7 @@ class SupervisorMetricsWorkerDriver implements Adapter
             'command' => 'updateSummaryMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'worker', $this->workerConfig->workerNumber);
+        $this->sendMetric($data);
     }
 
     public function updateHistogram(array $data): void
@@ -37,7 +65,7 @@ class SupervisorMetricsWorkerDriver implements Adapter
             'command' => 'updateHistogramMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'worker', $this->workerConfig->workerNumber);
+        $this->sendMetric($data);
     }
 
     public function updateGauge(array $data): void
@@ -46,7 +74,7 @@ class SupervisorMetricsWorkerDriver implements Adapter
             'command' => 'updateGaugeMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'worker', $this->workerConfig->workerNumber);
+        $this->sendMetric($data);
     }
 
     public function updateCounter(array $data): void
@@ -55,7 +83,7 @@ class SupervisorMetricsWorkerDriver implements Adapter
             'command' => 'updateCounterMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'worker', $this->workerConfig->workerNumber);
+        $this->sendMetric($data);
     }
 
     public function wipeStorage(): void

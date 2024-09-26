@@ -9,9 +9,36 @@ use Prometheus\Storage\Adapter;
 class SupervisorMetricsHttpProxyDriver implements Adapter
 {
 
+    private static $dataCache = null;
+
+    private static $cacheSize = 20;
+
+    private static $currentCacheSize = 0;
+
+    private function sendMetric(array $data): void
+    {
+        if (self::$currentCacheSize == self::$cacheSize) {
+            SupervisorClient::getInstance()->send(
+                [
+                    'command' => 'updateBatchMetrics',
+                    'data'=>self::$dataCache
+                ],
+                'http-proxy');
+            foreach (self::$dataCache as $key => $value) {
+                self::$dataCache[$key] = null;
+            }
+            self::$currentCacheSize = 0;
+        } else {
+            self::$dataCache[self::$currentCacheSize] = $data;
+            self::$currentCacheSize++;
+        }
+    }
+
     public function __construct()
     {
-
+        if (self::$dataCache===null) {
+            self::$dataCache = new \SplFixedArray(self::$cacheSize);
+        }
     }
 
     public function collect(): array
@@ -25,7 +52,7 @@ class SupervisorMetricsHttpProxyDriver implements Adapter
             'command' => 'updateSummaryMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'http-proxy');
+        $this->sendMetric($data);
     }
 
     public function updateHistogram(array $data): void
@@ -34,7 +61,7 @@ class SupervisorMetricsHttpProxyDriver implements Adapter
             'command' => 'updateHistogramMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'http-proxy');
+        $this->sendMetric($data);
     }
 
     public function updateGauge(array $data): void
@@ -43,7 +70,7 @@ class SupervisorMetricsHttpProxyDriver implements Adapter
             'command' => 'updateGaugeMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'http-proxy');
+        $this->sendMetric($data);
     }
 
     public function updateCounter(array $data): void
@@ -52,7 +79,7 @@ class SupervisorMetricsHttpProxyDriver implements Adapter
             'command' => 'updateCounterMetrics',
             'data' => $data,
         ];
-        SupervisorClient::getInstance()->send($data, 'http-proxy');
+        $this->sendMetric($data);
     }
 
     public function wipeStorage(): void
